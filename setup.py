@@ -17,5 +17,10 @@ setup(
         "pandas",
         "pymysql",
         "pytest",
+        "cryptography",
+        "psycopg2",
+        "pymongo",
+        "pyodbc",
+        "sqlalchemy",
     ],
 )
