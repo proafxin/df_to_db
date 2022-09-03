@@ -9,8 +9,7 @@ from pandas.api.types import is_integer_dtype, is_numeric_dtype
 # import pymysql as pms
 from sqlalchemy import Column, Float, Integer, MetaData, String, Table, create_engine
 from sqlalchemy.engine import Engine
-
-# from sqlalchemy.orm import Session, declarative_base
+from sqlalchemy.orm import Session
 
 __all__ = ["write_df_to_db"]
 
@@ -43,17 +42,18 @@ __all__ = ["write_df_to_db"]
 #     return connection
 
 
-# def _get_column_info(sa_session, table_name: str, dbname: str):
+def _get_column_info(sa_session, table_name: str, dbname: str):
 
-#     query = "SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS`"
-#     query = f"{query} WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
-#     session = sa_session.execute(query)
-#     cursor = session.cursor
-#     cols = [detail[0] for detail in cursor.description]
-#     info = cursor.fetchall()
-#     data = pd.DataFrame(info, columns=cols)
+    query = "SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS`"
+    query = f"{query} WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
+    session = sa_session.execute(query)
+    cursor = session.cursor
+    cols = [detail[0] for detail in cursor.description]
+    info = cursor.fetchall()
 
-#     return data
+    data = pd.DataFrame(info, columns=cols)
+
+    return data
 
 
 DIALECTS = {
@@ -83,18 +83,27 @@ def _get_sql_alchemy_engine(
     return engine
 
 
-# def _check_null(data: pd.DataFrame, info: pd.DataFrame):
-#     columns = info["COLUMN_NAME"].to_numpy()
-#     nullable_status = info["IS_NULLABLE"].to_numpy()
+def _check_null(data: pd.DataFrame, info: pd.DataFrame):
+    columns = info["COLUMN_NAME"].to_numpy()
+    nullable_status = info["IS_NULLABLE"].to_numpy()
+    column_keys = info["COLUMN_KEY"].to_numpy()
 
-#     for column, status in zip(columns, nullable_status):
-#         if status == "NO":
-#             if data[column].dropna().shape[0] < data.shape[0]:
-#                 raise ValueError(f"`{column}` is non-nullable but has null value")
+    columns_valid = []
+    for column, status, key in zip(columns, nullable_status, column_keys):
+        if "PRI" in key:
+            continue
+        if status == "NO":
+            if data[column].dropna().shape[0] < data.shape[0]:
+                raise ValueError(f"`{column}` is non-nullable but has null value")
+        columns_valid.append(column)
+    print(data.head())
+    print(data.columns)
+    print(columns_valid)
 
-#     data = data[columns].copy()
+    data = data[columns_valid].copy()
+    data = data.reset_index(drop=True)
 
-#     return data
+    return data
 
 
 # def form_sql_query(data: pd.DataFrame, info: pd.DataFrame, table_name: str):
@@ -111,6 +120,20 @@ def clean_column(column: str):
     """
 
     return str(column).strip().strip('"')
+
+
+def clean_columns(data: pd.DataFrame):
+    """Clean the column names of the dataframe.
+
+    :param data: DataFrame to clean.
+    :type data: pd.DataFrame
+    :return: Cleaned DataFrame
+    :rtype: `pd.DataFrame`
+    """
+
+    data.columns = [clean_column(column) for column in data.columns]
+
+    return data
 
 
 def _get_table_from_dataframe(
@@ -145,13 +168,12 @@ def _get_table_from_dataframe(
 
     columns.append(Column(primary_key, Integer, primary_key=True))
     for column in data.columns:
-        clean_name = clean_column(column=column)
         if is_integer_dtype(data[column]):
-            columns.append(Column(clean_name, Integer))
+            columns.append(Column(column, Integer))
         elif is_numeric_dtype(data[column]):
-            columns.append(Column(clean_name, Float))
+            columns.append(Column(column, Float))
         else:
-            columns.append(Column(clean_name, String(max_length)))
+            columns.append(Column(column, String(max_length)))
 
     table = Table(table_name, metadata, *columns)
 
@@ -170,10 +192,8 @@ def _write_data_to_table(data: pd.DataFrame, engine: Engine, table: Table):
     """Write `data` to `table` using connection from `engine`
 
     :return: Result with rows written to table
-    :rtype: sqlalchemy.engine.cursor.CursorResult
+    :rtype: `sqlalchemy.engine.cursor.CursorResult`
     """
-
-    data.columns = [clean_column(column=column) for column in data.columns]
 
     with engine.connect() as conn:
         ins = table.insert()
@@ -186,6 +206,13 @@ def _write_data_to_table(data: pd.DataFrame, engine: Engine, table: Table):
 
 
 def _delete_table(table: Table, engine: Engine):
+    """_summary_
+
+    :param table: Table to delete
+    :type table: `Table`
+    :param engine: Engine of database connection
+    :type engine: `sqlalchemy.engine.Engine`
+    """
 
     table.drop(bind=engine, checkfirst=True)
 
@@ -224,10 +251,12 @@ def write_df_to_db(
     :rtype: CursorResult
     """
 
+    data = clean_columns(data=data)
+
     engine = _get_sql_alchemy_engine(
         dialect="mysql", host=host, user=user, dbname=dbname, password=password, port=port
     )
-    # sa_session = Session(engine)
+    sa_session = Session(engine)
 
     # _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
     # info = _get_column_info(cursor=connection.cursor(), table_name=table_name, dbname=dbname)
@@ -241,6 +270,8 @@ def write_df_to_db(
     if drop_first:
         _delete_table(table=table, engine=engine)
     table = _create_new_table(table=table, engine=engine)
+    info = _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
+    data = _check_null(data=data, info=info)
     result = _write_data_to_table(data=data, engine=engine, table=table)
 
     return result, table
