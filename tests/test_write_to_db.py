@@ -2,8 +2,10 @@
 
 import os
 
-import pymysql as pms
-from write_df.df_to_db import _get_column_info, _get_mysql_connection
+# import pymysql as pms
+from sqlalchemy.future import Connection, Engine
+from sqlalchemy.orm import Session
+from write_df.df_to_db import _get_column_info, _get_sql_alchemy_engine
 
 HOST = os.environ["MYSQL_HOST"]
 USER = os.environ["MYSQL_USER"]
@@ -19,20 +21,21 @@ class TestWriteToMySQL:
     def test_mysql_connection(self):
         """Test mysql connection from environment variables"""
 
-        conn = _get_mysql_connection(
+        engine = _get_sql_alchemy_engine(
+            dialect="mysql",
             host=HOST,
-            dbname=DBNAME,
             user=USER,
             password=PASSWORD,
+            dbname=DBNAME,
             port=PORT,
         )
-        assert isinstance(conn, pms.connect)
-        for table_name in TABLE_NAMES:
-            print(table_name)
-            info = _get_column_info(
-                cursor=conn.cursor(), table_name=table_name.strip(), dbname=DBNAME
-            )
-            print(info.head())
-            print(info["COLUMN_NAME"].to_numpy())
-            print(info["IS_NULLABLE"].to_numpy())
-        assert 1 == 2
+        assert isinstance(engine, Engine), "engine is not correct"
+        with Session(engine) as sess:
+            assert isinstance(sess, Session)
+
+        # for table_name in TABLE_NAMES:
+        #     print(table_name)
+        #     info = _get_column_info(cursor=cursor, table_name=table_name.strip(), dbname=DBNAME)
+        #     print(info.head())
+        #     print(info["COLUMN_NAME"].to_numpy())
+        #     print(info["IS_NULLABLE"].to_numpy())

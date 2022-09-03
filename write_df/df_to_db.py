@@ -1,47 +1,50 @@
 """Write a pandas dataframe to a database table"""
 
 
-from io import StringIO
+# from io import StringIO
 
 import pandas as pd
-import pymysql as pms
+
+# import pymysql as pms
 from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, declarative_base
 
 __all__ = ["write_df_to_db"]
 
 
-def _get_mysql_connection(host: str, dbname: str, user: str, password: str, port: int):
-    """Get MySQL connection from credentials.
+# def _get_mysql_connection(host: str, dbname: str, user: str, password: str, port: int):
+#     """Get MySQL connection from credentials.
 
-    :param host: Host of the database.
-    :type host: str
-    :param dbname: Name of the databse.
-    :type dbname: str
-    :param user: Username of the database account.
-    :type user: str
-    :param password: Password of the database account.
-    :type password: str
-    :param port: Port of the database connection.
-    :type port: int
-    :return: Connection to the MySQL database.
-    :rtype: pymysql.connect
-    """
+#     :param host: Host of the database.
+#     :type host: str
+#     :param dbname: Name of the databse.
+#     :type dbname: str
+#     :param user: Username of the database account.
+#     :type user: str
+#     :param password: Password of the database account.
+#     :type password: str
+#     :param port: Port of the database connection.
+#     :type port: int
+#     :return: Connection to the MySQL database.
+#     :rtype: pymysql.connect
+#     """
 
-    connection = pms.connect(
-        host=host,
-        db=dbname,
-        user=user,
-        password=password,
-        port=port,
-    )
+#     connection = pms.connect(
+#         host=host,
+#         db=dbname,
+#         user=user,
+#         password=password,
+#         port=port,
+#     )
 
-    return connection
+#     return connection
 
 
-def _get_column_info(cursor: pms.cursors.Cursor, table_name: str, dbname: str):
+def _get_column_info(sa_session, table_name: str, dbname: str):
 
     query = f"SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
-    cursor.execute(query)
+    session = sa_session.execute(query)
+    cursor = session.cursor
     cols = [detail[0] for detail in cursor.description]
     info = cursor.fetchall()
     data = pd.DataFrame(info, columns=cols)
@@ -56,7 +59,7 @@ DIALECTS = {
 }
 DRIVERS = {
     "sqlserver": "pyodbc",
-    "mysql": "pyodbc",
+    "mysql": "mysqldb",
     "postgresql": "psycopg2",
 }
 
@@ -94,6 +97,10 @@ def form_sql_query(data: pd.DataFrame, info: pd.DataFrame, table_name: str):
     pass
 
 
+def _create_new_table(data: pd.DataFrame):
+    pass
+
+
 def write_df_to_db(
     data: pd.DataFrame,
     host: str,
@@ -110,11 +117,10 @@ def write_df_to_db(
     engine = _get_sql_alchemy_engine(
         dialect="mysql", host=host, user=user, dbname=dbname, password=password, port=port
     )
-    connection = engine.connect()
-    cursor = connection.cursor()
+    sa_session = Session(engine)
 
-    _get_column_info(cursor=cursor, table_name=table_name, dbname=dbname)
+    _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
     # info = _get_column_info(cursor=connection.cursor(), table_name=table_name, dbname=dbname)
     if create_table:
         query = f"DROP TABLE IF EXISTS {table_name}"
-        cursor.execute(query)
+        sa_session.execute(query)
