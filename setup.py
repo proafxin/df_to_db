@@ -18,9 +18,9 @@ setup(
         "pymysql",
         "pytest",
         "cryptography",
-        "psycopg2",
-        "pymongo",
-        "pyodbc",
+        # "pymongo",
+        # "pyodbc",
         "sqlalchemy",
+        "mysqlclient",
     ],
 )
