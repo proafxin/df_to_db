@@ -4,6 +4,7 @@ import os
 import sys
 
 import pkg_resources
+import pytest
 from coverage import Coverage
 
 DEFAULT_COLOR = "#a4a61d"
@@ -66,10 +67,10 @@ def save_badge(badge, filepath):
 def main():
     """Check minimum coverage"""
 
-    cov = Coverage(source=["."], omit=[])
+    cov = Coverage(source=".", omit=["calculate_coverage.py", "setup.py"])
     cov.erase()
     cov.start()
-
+    pytest.main()
     cov.stop()
     cov.save()
     covered = cov.report(show_missing=True)

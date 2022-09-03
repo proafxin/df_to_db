@@ -1,11 +1,16 @@
 """Test dataframe to database module"""
 
 import os
+from io import StringIO
+
+import pandas as pd
 
 # import pymysql as pms
-from sqlalchemy.future import Connection, Engine
+from requests import get
+from sqlalchemy.engine.cursor import CursorResult
+from sqlalchemy.future import Engine
 from sqlalchemy.orm import Session
-from write_df.df_to_db import _get_column_info, _get_sql_alchemy_engine
+from write_df.df_to_db import _delete_table, _get_sql_alchemy_engine, write_df_to_db
 
 HOST = os.environ["MYSQL_HOST"]
 USER = os.environ["MYSQL_USER"]
@@ -33,9 +38,23 @@ class TestWriteToMySQL:
         with Session(engine) as sess:
             assert isinstance(sess, Session)
 
-        # for table_name in TABLE_NAMES:
-        #     print(table_name)
-        #     info = _get_column_info(cursor=cursor, table_name=table_name.strip(), dbname=DBNAME)
-        #     print(info.head())
-        #     print(info["COLUMN_NAME"].to_numpy())
-        #     print(info["IS_NULLABLE"].to_numpy())
+        response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
+        assert response.status_code == 200
+
+        data = pd.read_csv(StringIO(response.content.decode()))
+        table_name = "test__table__"
+        result, table = write_df_to_db(
+            data=data,
+            host=HOST,
+            dbname=DBNAME,
+            user=USER,
+            password=PASSWORD,
+            port=PORT,
+            table_name=table_name,
+            primary_key="id",
+            drop_first=True,
+        )
+        assert engine.dialect.has_table(connection=engine.connect(), table_name=table_name) is True
+        assert isinstance(result, CursorResult)
+        assert result.rowcount == data.shape[0]
+        _delete_table(table=table, engine=engine)
