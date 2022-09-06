@@ -4,10 +4,12 @@
 # from io import StringIO
 
 import pandas as pd
+from pandas.api.types import is_integer_dtype, is_numeric_dtype
 
 # import pymysql as pms
-from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, declarative_base
+from sqlalchemy import Column, Float, Integer, MetaData, String, Table, create_engine
+from sqlalchemy.engine import Engine
+from sqlalchemy.orm import Session
 
 __all__ = ["write_df_to_db"]
 
@@ -42,11 +44,13 @@ __all__ = ["write_df_to_db"]
 
 def _get_column_info(sa_session, table_name: str, dbname: str):
 
-    query = f"SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS` WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
+    query = "SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS`"
+    query = f"{query} WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
     session = sa_session.execute(query)
     cursor = session.cursor
     cols = [detail[0] for detail in cursor.description]
     info = cursor.fetchall()
+
     data = pd.DataFrame(info, columns=cols)
 
     return data
@@ -82,23 +86,135 @@ def _get_sql_alchemy_engine(
 def _check_null(data: pd.DataFrame, info: pd.DataFrame):
     columns = info["COLUMN_NAME"].to_numpy()
     nullable_status = info["IS_NULLABLE"].to_numpy()
+    column_keys = info["COLUMN_KEY"].to_numpy()
 
-    for column, status in zip(columns, nullable_status):
+    columns_valid = []
+    for column, status, key in zip(columns, nullable_status, column_keys):
+        if "PRI" in key:
+            continue
         if status == "NO":
             if data[column].dropna().shape[0] < data.shape[0]:
                 raise ValueError(f"`{column}` is non-nullable but has null value")
+        columns_valid.append(column)
+    print(data.head())
+    print(data.columns)
+    print(columns_valid)
 
-    data = data[columns].copy()
+    data = data[columns_valid].copy()
+    data = data.reset_index(drop=True)
 
     return data
 
 
-def form_sql_query(data: pd.DataFrame, info: pd.DataFrame, table_name: str):
-    pass
+# def form_sql_query(data: pd.DataFrame, info: pd.DataFrame, table_name: str):
+#     pass
 
 
-def _create_new_table(data: pd.DataFrame):
-    pass
+def clean_column(column: str):
+    """Clean name of dataframe column
+
+    :param column: Name of column
+    :type column: str
+    :return: Cleaned name of column
+    :rtype: str
+    """
+
+    return str(column).strip().strip('"')
+
+
+def _clean_columns(data: pd.DataFrame):
+    """Clean the column names of the dataframe.
+
+    :param data: DataFrame to clean.
+    :type data: pd.DataFrame
+    :return: Cleaned DataFrame
+    :rtype: `pd.DataFrame`
+    """
+
+    data.columns = [clean_column(column) for column in data.columns]
+
+    return data
+
+
+def _get_table_from_dataframe(
+    data: pd.DataFrame,
+    engine: Engine,
+    table_name: str,
+    primary_key: str = "id",
+    max_length: int = 100,
+):
+    """Get SQLAlchemy Table from dataframe
+
+    :param data: DataFrame with actual data
+    :type data: pd.DataFrame
+    :param engine: SQLAlchemy Engine of database connection
+    :type engine: Engine
+    :param table_name: Name of table
+    :type table_name: str
+    :param primary_key: Primary key of table, defaults to "id"
+    :type primary_key: str, optional
+    :param max_length: Maximum length of varchar, defaults to 100
+    :type max_length: int, optional
+    :return: SQLAlchemy Table of `data`
+    :rtype: `sqlalchemy.Table`
+    """
+
+    assert engine is not None, "engine must be present"
+
+    metadata = MetaData(engine)
+    columns = []
+    if primary_key in data.columns:
+        data = data.drop(primary_key, axis=1)
+
+    columns.append(Column(primary_key, Integer, primary_key=True))
+    for column in data.columns:
+        if is_integer_dtype(data[column]):
+            columns.append(Column(column, Integer))
+        elif is_numeric_dtype(data[column]):
+            columns.append(Column(column, Float))
+        else:
+            columns.append(Column(column, String(max_length)))
+
+    table = Table(table_name, metadata, *columns)
+
+    return table
+
+
+def _create_new_table(table: Table, engine: Engine):
+
+    table.create(bind=engine, checkfirst=True)
+
+    return table
+
+
+def _write_data_to_table(data: pd.DataFrame, engine: Engine, table: Table):
+
+    """Write `data` to `table` using connection from `engine`
+
+    :return: Result with rows written to table
+    :rtype: `sqlalchemy.engine.cursor.CursorResult`
+    """
+
+    with engine.connect() as conn:
+        ins = table.insert()
+        records = data.to_dict("records")
+
+        result = conn.execute(ins, records)
+        conn.commit()
+
+        return result
+
+
+def _delete_table(table: Table, engine: Engine):
+    """_summary_
+
+    :param table: Table to delete
+    :type table: `Table`
+    :param engine: Engine of database connection
+    :type engine: `sqlalchemy.engine.Engine`
+    """
+
+    table.drop(bind=engine, checkfirst=True)
 
 
 def write_df_to_db(
@@ -109,18 +225,59 @@ def write_df_to_db(
     password: str,
     port: int,
     table_name: str,
-    create_table: bool = False,
+    primary_key: str = "id",
+    drop_first: bool = False,
+    clean_columns: bool = True,
+    max_length: int = 100,
 ):
-    # connection = _get_mysql_connection(
-    #     host=host, dbname=dbname, user=user, password=password, port=port
-    # )
+    """Write `data` to Table `table_name`
+
+    :param data: Pandas dataframe containing data to write
+    :type data: pd.DataFrame
+    :param host: Host URL
+    :type host: str
+    :param dbname: Name of database
+    :type dbname: str
+    :param user: Username of this database connection
+    :type user: str
+    :param password: Password of this database connection
+    :type password: str
+    :param port: Port of this database connection
+    :type port: int
+    :param table_name: Name of table
+    :type table_name: str
+    :param primary_key: Primary key of table, defaults to "id"
+    :type primary_key: str, optional
+    :param drop_first: if True, table `table_name` in database will be attempted to drop first.
+    :type drop_first: bool
+    :param clean_columns: If True, trailing/leading whitespaces and " will be stripped off column names, defaults to "True"
+    :type clean_columns: bool
+    :return: Cursor with result of query execution
+    :rtype: CursorResult
+    """
+
+    if clean_columns:
+        data = _clean_columns(data=data)
+
     engine = _get_sql_alchemy_engine(
         dialect="mysql", host=host, user=user, dbname=dbname, password=password, port=port
     )
     sa_session = Session(engine)
 
-    _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
+    # _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
     # info = _get_column_info(cursor=connection.cursor(), table_name=table_name, dbname=dbname)
-    if create_table:
-        query = f"DROP TABLE IF EXISTS {table_name}"
-        sa_session.execute(query)
+    table = _get_table_from_dataframe(
+        data=data,
+        engine=engine,
+        table_name=table_name,
+        primary_key=primary_key,
+        max_length=max_length,
+    )
+    if drop_first:
+        _delete_table(table=table, engine=engine)
+    table = _create_new_table(table=table, engine=engine)
+    info = _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
+    data = _check_null(data=data, info=info)
+    result = _write_data_to_table(data=data, engine=engine, table=table)
+
+    return result, table
