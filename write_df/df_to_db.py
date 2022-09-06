@@ -122,7 +122,7 @@ def clean_column(column: str):
     return str(column).strip().strip('"')
 
 
-def clean_columns(data: pd.DataFrame):
+def _clean_columns(data: pd.DataFrame):
     """Clean the column names of the dataframe.
 
     :param data: DataFrame to clean.
@@ -227,6 +227,7 @@ def write_df_to_db(
     table_name: str,
     primary_key: str = "id",
     drop_first: bool = False,
+    clean_columns: bool = True,
     max_length: int = 100,
 ):
     """Write `data` to Table `table_name`
@@ -247,11 +248,16 @@ def write_df_to_db(
     :type table_name: str
     :param primary_key: Primary key of table, defaults to "id"
     :type primary_key: str, optional
+    :param drop_first: if True, table `table_name` in database will be attempted to drop first.
+    :type drop_first: bool
+    :param clean_columns: If True, trailing/leading whitespaces and " will be stripped off column names, defaults to "True"
+    :type clean_columns: bool
     :return: Cursor with result of query execution
     :rtype: CursorResult
     """
 
-    data = clean_columns(data=data)
+    if clean_columns:
+        data = _clean_columns(data=data)
 
     engine = _get_sql_alchemy_engine(
         dialect="mysql", host=host, user=user, dbname=dbname, password=password, port=port
