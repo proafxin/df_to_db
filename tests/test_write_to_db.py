@@ -91,8 +91,6 @@ class TestWriteToMySQL:
         data[primary_key] = [random.randint(1, data.shape[0]) for i in range(data.shape[0])]
         data["y"] = [random.random() for i in range(data.shape[0])]
         data.at[0, "y"] = np.nan
-        data.to_csv("data.csv", index=False)
-        data = pd.read_csv("data.csv")
         table_name = "test__table__"
 
         result, _ = self.__dbconnobj.write_df_to_db(
@@ -107,4 +105,3 @@ class TestWriteToMySQL:
         assert result.rowcount == data.shape[0]
         self.__dbconnobj.delete_table(table_name=table_name)
         self.__dbconnobj.close_connection()
-        os.remove("data.csv")
