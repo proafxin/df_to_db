@@ -22,5 +22,6 @@ setup(
         # "pyodbc",
         "sqlalchemy",
         "mysqlclient",
+        "coverage",
     ],
 )
