@@ -23,8 +23,8 @@ TABLE_NAMES = os.environ["TEST_TABLE_NAMES"].split(",")
 class TestWriteToMySQL:
     """Test class for writing to MySQL database"""
 
-    def test_mysql_connection(self):
-        """Test mysql connection from environment variables"""
+    def _get_test_mysql_connection(self):
+        """Get mysql test connection from environment variables"""
 
         engine = _get_sql_alchemy_engine(
             dialect="mysql",
@@ -34,7 +34,21 @@ class TestWriteToMySQL:
             dbname=DBNAME,
             port=PORT,
         )
+
+        return engine
+
+    def test_mysql_connection(self):
+        """Test mysql conncection"""
+
+        engine = self._get_test_mysql_connection()
+
         assert isinstance(engine, Engine), "engine is not correct"
+
+    def test_mysql_write_without_primary_key(self):
+        """Test writing dataframe without primary key"""
+
+        engine = self._get_test_mysql_connection()
+
         with Session(engine) as sess:
             assert isinstance(sess, Session)
 
