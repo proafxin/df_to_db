@@ -107,3 +107,4 @@ class TestWriteToMySQL:
         assert result.rowcount == data.shape[0]
         self.__dbconnobj.delete_table(table_name=table_name)
         self.__dbconnobj.close_connection()
+        os.remove("data.csv")
