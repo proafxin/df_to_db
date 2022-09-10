@@ -23,5 +23,7 @@ setup(
         "sqlalchemy",
         "mysqlclient",
         "coverage",
+        "sphinx",
+        "sphinx-rtd-theme",
     ],
 )
