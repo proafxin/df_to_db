@@ -6,35 +6,70 @@ from io import StringIO
 
 import numpy as np
 import pandas as pd
-
-# import pymysql as pms
 from requests import get
 from sqlalchemy.engine.cursor import CursorResult
 from write_df.df_to_db import SQLDatabaseConnection
 
-TABLE_NAMES = os.environ["TEST_TABLE_NAMES"].split(",")
+DBNAME = "__test_db__"
+
+MYSQL_CONNECTION = SQLDatabaseConnection(
+    dbtype="mysql",
+    host=os.environ["MYSQL_HOST"],
+    dbname=DBNAME,
+    user=os.environ["MYSQL_USER"],
+    password=os.environ["MYSQL_PASSWORD"],
+    port=os.environ["MYSQL_PORT"],
+)
+
+POSTGRE_CONNECTION = SQLDatabaseConnection(
+    dbtype="postgresql",
+    host=os.environ["POSTGRESQL_HOST"],
+    dbname=DBNAME,
+    user=os.environ["POSTGRESQL_USER"],
+    password=os.environ["POSTGRESQL_PASSWORD"],
+    port=os.environ["POSTGRESQL_PORT"],
+)
+
+CONNECTIONS = [
+    ("mysql", {"conn": MYSQL_CONNECTION}),
+    ("postgresql", {"conn": POSTGRE_CONNECTION}),
+]
 
 
-class TestWriteToMySQL:
+def pytest_generate_tests(metafunc):
+    """Generate pytest Tests for all connections
+
+    :param metafunc: _description_
+    :type metafunc: _type_
+    """
+
+    idlist = []
+    argvalues = []
+    for scenario in metafunc.cls.connections:
+        idlist.append(scenario[0])
+        items = scenario[1].items()
+        argnames = [x[0] for x in items]
+        argvalues.append([x[1] for x in items])
+    metafunc.parametrize(argnames, argvalues, ids=idlist, scope="class")
+    for connection in CONNECTIONS:
+        connection[1]["conn"].close_connection()
+
+
+class TestWriteToSQL:
     """Test class for writing to MySQL database"""
 
-    __dbname = "__testdb__"
+    __dbname = DBNAME
+    connections = CONNECTIONS
 
-    __dbconnobj = SQLDatabaseConnection(
-        host=os.environ["MYSQL_HOST"],
-        dbname=__dbname,
-        user=os.environ["MYSQL_USER"],
-        password=os.environ["MYSQL_PASSWORD"],
-        port=int(os.environ["MYSQL_PORT"]),
-    )
-
-    def test_create_database(self):
+    # @pytest.mark.order(1)
+    def test_create_database(self, conn: SQLDatabaseConnection):
         """Test if database is indeed created"""
 
-        database_names = self.__dbconnobj.get_list_of_database()
+        database_names = conn.get_list_of_database()
         assert self.__dbname in database_names
 
-    def test_mysql_write_without_primary_key_no_null(self):
+    # @pytest.mark.order(2)
+    def test_mysql_write_without_primary_key_no_null(self, conn: SQLDatabaseConnection):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -42,19 +77,18 @@ class TestWriteToMySQL:
 
         data = pd.read_csv(StringIO(response.content.decode()))
         table_name = "test__table__"
-        result, _ = self.__dbconnobj.write_df_to_db(
+        result, _ = conn.write_df_to_db(
             data=data,
-            dbname=self.__dbname,
             table_name=table_name,
-            primary_key="id",
             drop_first=True,
         )
-        assert self.__dbconnobj.has_table(table_name=table_name) is True
+        assert conn.has_table(table_name=table_name) is True
         assert isinstance(result, CursorResult)
         assert result.rowcount == data.shape[0]
-        self.__dbconnobj.delete_table(table_name=table_name)
+        conn.delete_table(table_name=table_name)
 
-    def test_mysql_write_with_primary_key_and_float(self):
+    # @pytest.mark.order(3)
+    def test_mysql_write_with_primary_key_and_float(self, conn: SQLDatabaseConnection):
         """Test writing dataframe with primary key and float data"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -66,42 +100,52 @@ class TestWriteToMySQL:
         data["y"] = [random.random() for i in range(data.shape[0])]
         table_name = "test__table__"
 
-        result, _ = self.__dbconnobj.write_df_to_db(
+        result, _ = conn.write_df_to_db(
             data=data,
-            dbname=self.__dbname,
             table_name=table_name,
-            primary_key=primary_key,
             drop_first=True,
         )
-        assert self.__dbconnobj.has_table(table_name=table_name) is True
-        table_names = self.__dbconnobj.get_list_of_tables(dbname=self.__dbname)
-        assert table_name in table_names
+        assert conn.has_table(table_name=table_name) is True
         assert isinstance(result, CursorResult)
         assert result.rowcount == data.shape[0]
-        self.__dbconnobj.delete_table(table_name=table_name)
+        conn.delete_table(table_name=table_name)
 
-    def test_mysql_write_without_primary_key(self):
+    # @pytest.mark.order(4)
+    def test_mysql_write_with_primary_key_null(self, conn: SQLDatabaseConnection):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
         assert response.status_code == 200
 
         data = pd.read_csv(StringIO(response.content.decode()))
-        primary_key = "id"
-        data[primary_key] = [random.randint(1, data.shape[0]) for i in range(data.shape[0])]
+        data["test"] = [random.randint(1, data.shape[0]) for i in range(data.shape[0])]
         data["y"] = [random.random() for i in range(data.shape[0])]
         data.at[0, "y"] = np.nan
         table_name = "test__table__"
 
-        result, _ = self.__dbconnobj.write_df_to_db(
+        result, _ = conn.write_df_to_db(
             data=data,
-            dbname=self.__dbname,
             table_name=table_name,
-            primary_key=primary_key,
+            id_col=None,
             drop_first=True,
         )
-        assert self.__dbconnobj.has_table(table_name=table_name) is True
+        assert conn.has_table(table_name=table_name) is True
         assert isinstance(result, CursorResult)
         assert result.rowcount == data.shape[0]
-        self.__dbconnobj.delete_table(table_name=table_name)
-        self.__dbconnobj.close_connection()
+        conn.delete_table(table_name=table_name)
+
+
+# @pytest.mark.order(9)
+class TestDropDatabase:
+    """Test database drop methods"""
+
+    __dbname = DBNAME
+    connections = CONNECTIONS
+
+    def test_drop_database(self, conn: SQLDatabaseConnection):
+        """Test database deletion"""
+
+        conn.delete_database()
+        database_names = conn.get_list_of_database()
+        assert self.__dbname not in database_names
+        conn.close_connection()
