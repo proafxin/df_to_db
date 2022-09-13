@@ -25,5 +25,7 @@ setup(
         "coverage",
         "sphinx",
         "sphinx-rtd-theme",
+        "psycopg2",
+        "sqlalchemy-utils",
     ],
 )
