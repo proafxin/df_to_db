@@ -3,8 +3,6 @@
 
 import pandas as pd
 from pandas.api.types import is_integer_dtype, is_numeric_dtype
-
-# import pymysql as pms
 from sqlalchemy import (
     Column,
     Float,
@@ -16,31 +14,8 @@ from sqlalchemy import (
     text,
 )
 from sqlalchemy.orm import Session
-
-DIALECTS = {
-    "sqlserver": "mssql",
-    "mysql": "mysql",
-    "postgresql": "postgresql",
-}
-DRIVERS = {
-    "sqlserver": "pyodbc",
-    "mysql": "mysqldb",
-    "postgresql": "psycopg2",
-}
-
-
-def get_names(names: list[str]):
-    """Get first element of name tuples
-    Typically returned from a database query
-    For example, result of `SHOW DATABASES;`
-
-    :param names: Names to parse
-    :type names: list[str]
-    :return: List of names
-    :rtype: `list[str]`
-    """
-
-    return [name[0] for name in names]
+from sqlalchemy_utils import create_database, database_exists, drop_database
+from write_df.common import saved_values
 
 
 class SQLDatabaseConnection:
@@ -48,96 +23,82 @@ class SQLDatabaseConnection:
 
     def __init__(
         self,
-        host: str = "localhost",
-        dbname: str = "",
-        user: str = "root",
-        password: str = "",
-        port: int = 3306,
-    ) -> None:
-        self.create_database(
-            host=host,
-            dbname=dbname,
-            user=user,
-            password=password,
-            port=port,
-        )
-        self.__engine = self._get_sql_alchemy_engine(
-            dialect="mysql",
-            host=host,
-            dbname=dbname,
-            user=user,
-            password=password,
-            port=port,
-        )
-
-    def _get_sql_alchemy_engine(
-        self, dialect: str, host: str, user: str, password: str, dbname: str, port: int
+        dbtype: str,
+        host: str,
+        dbname: str,
+        user: str,
+        password: str,
+        port: int,
     ):
 
-        assert dialect in DIALECTS
+        assert dbtype in saved_values
+        assert dbname is not None, "`dbname` must be a valid database name"
+        self.__dbtype = dbtype
+        self.__dbname = dbname
 
-        driver = DRIVERS[dialect]
-        dialect = DIALECTS[dialect]
+        self.__engine = self._get_db_specific_engine(
+            host=host,
+            user=user,
+            password=password,
+            port=port,
+        )
+        self.__engine_all = self._get_generic_engine(
+            host=host, user=user, password=password, port=port
+        )
 
-        connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}"
-        if dbname:
-            connection_string = f"{connection_string}/{dbname}"
-        engine = create_engine(connection_string, future=True)
+        if not database_exists(url=self.__engine.url):
+            create_database(self.__engine.url)
+
+    def _get_db_specific_engine(self, host: str, user: str, password: str, port: int):
+
+        dialect = saved_values[self.__dbtype]["dialect"]
+        driver = saved_values[self.__dbtype]["driver"]
+
+        connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
+
+        engine = create_engine(connection_string, future=True, pool_pre_ping=True)
 
         return engine
 
-    def execute_single_query(self, query: str):
+    def _get_generic_engine(self, host: str, user: str, password: str, port: int):
+
+        dialect = saved_values[self.__dbtype]["dialect"]
+        driver = saved_values[self.__dbtype]["driver"]
+
+        connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}"
+
+        engine = create_engine(connection_string, future=True, pool_pre_ping=True)
+
+        return engine
+
+    def execute_single_query(self, query: str, db_specific: bool):
         """Execute a single query using this connection
 
         :param query: SQL statement to execute
         :type query: `str`
+        :param db_specific: True if a database specific connection should be used.
+            If database is already created, set this to True.
+        :type db_specific: `str`
         :return: Result of executed query
         :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
 
-        assert self.__engine is not None
+        engine = self.__engine
+        if not db_specific:
+            engine = self.__engine_all
+        conn = engine.connect()
+        result = conn.execute(text(query))
+        conn.commit()
 
-        with self.__engine.connect() as conn:
-            result = conn.execute(text(query))
-            conn.commit()
+        conn.close()
 
-            return result
+        return result
 
-    def create_database(
-        self,
-        host: str = "localhost",
-        dbname: str = "",
-        user: str = "root",
-        password: str = "",
-        port: int = 3306,
-    ):
-        """Create database `dbname`
+    def delete_database(self):
+        """Drops the database `dbname` provided during the creation of connection object."""
 
-        :param host: Host address of the database, defaults to "localhost"
-        :type host: `str`, optional
-        :param dbname: Name of the database, defaults to ""
-        :type dbname: `str`, optional
-        :param user: Database username, defaults to "root"
-        :type user: `str`, optional
-        :param password: Password of the database connection, defaults to ""
-        :type password: `str`, optional
-        :param port: Port to be used for this database connection, defaults to 3306
-        :type port: `int`, optional
-        """
-
-        engine = self._get_sql_alchemy_engine(
-            dialect="mysql",
-            host=host,
-            dbname=None,
-            user=user,
-            password=password,
-            port=port,
-        )
-        with engine.connect() as conn:
-            query = f"CREATE DATABASE IF NOT EXISTS {dbname}"
-
-            conn.execute(text(query))
-            conn.commit()
+        if database_exists(self.__engine.url):
+            drop_database(self.__engine.url)
 
     def get_list_of_database(self):
         """Get list of database for this connection
@@ -146,46 +107,34 @@ class SQLDatabaseConnection:
         :rtype: `list[str]`
         """
 
-        query = "SHOW DATABASES;"
-        database_names = self.execute_single_query(query=query)
-        database_names = get_names(names=database_names)
+        query = saved_values[self.__dbtype]["query"]["db_list"]
+        database_names = self.execute_single_query(query=query, db_specific=False)
+
+        database_names = [name[0] for name in database_names]
 
         return database_names
 
-    def get_list_of_tables(self, dbname: str):
-        """Get list of tables in database `dbname`
-
-        :return: List of string containing tables names in the database
-        :rtype: `list[str]`
-        """
-
-        query = f"""SHOW TABLES FROM {dbname}"""
-        table_names = self.execute_single_query(query=query)
-        table_names = get_names(names=table_names)
-
-        return table_names
-
-    def get_column_info(self, sa_session: Session, dbname: str, table_name: str):
+    def get_column_info(self, table_name: str):
         """Get table schema from database
 
-        :param sa_session: SQLAlchemy Engine Session of the database connection
-        :type sa_session: `sqlalchemy.orm.Session`
-        :param dbname: Name of database
-        :type dbname: `str`
         :param table_name: Name of the table in database
         :type table_name: `str`
         :return: Pandas dataframe of table schema
         :rtype: `pd.DataFrame`
         """
 
-        query = "SELECT * FROM `INFORMATION_SCHEMA`.`COLUMNS`"
-        query = f"{query} WHERE `TABLE_SCHEMA`='{dbname}' AND `TABLE_NAME`='{table_name}';"
+        sa_session = Session(self.__engine)
+
+        query = saved_values[self.__dbtype]["query"]["column_info"].format(
+            self.__dbname, table_name
+        )
         session = sa_session.execute(query)
         cursor = session.cursor
         cols = [detail[0] for detail in cursor.description]
         info = cursor.fetchall()
 
         data = pd.DataFrame(info, columns=cols)
+        data.columns = [column.lower() for column in data.columns]
 
         return data
 
@@ -202,15 +151,16 @@ class SQLDatabaseConnection:
             connection=self.__engine.connect(), table_name=table_name
         )
 
-    def _check_null(self, data: pd.DataFrame, info: pd.DataFrame):
-        columns = info["COLUMN_NAME"].to_numpy()
-        nullable_status = info["IS_NULLABLE"].to_numpy()
-        column_keys = info["COLUMN_KEY"].to_numpy()
+    def _check_null(self, data: pd.DataFrame, info: pd.DataFrame, id_col: str):
+
+        columns = info["column_name"].to_numpy()
+        nullable_status = info["is_nullable"].to_numpy()
 
         columns_valid = []
-        for column, status, key in zip(columns, nullable_status, column_keys):
-            if "PRI" in key:
+        for column, status in zip(columns, nullable_status):
+            if id_col == column:
                 continue
+
             if status == "NO":
                 if data[column].dropna().shape[0] < data.shape[0]:
                     raise ValueError(f"`{column}` is non-nullable but has null value")
@@ -226,7 +176,7 @@ class SQLDatabaseConnection:
 
         :param column: Name of column
         :type column: `str`
-        :return: Cleaned name of column
+        :return: Clean name of column
         :rtype: `str`
         """
 
@@ -249,19 +199,19 @@ class SQLDatabaseConnection:
         self,
         data: pd.DataFrame,
         table_name: str,
-        primary_key: str = "id",
+        id_col: str,
         max_length: int = 100,
     ):
         """Get SQLAlchemy Table from dataframe
 
-        :param data: DataFrame with actual data
-        :type data: pd.DataFrame
-        :param engine: SQLAlchemy Engine of database connection
-        :type engine: Engine
+        :param data: DataFrame of actual data to be written in the table
+        :type data: `pd.DataFrame`
         :param table_name: Name of table
-        :type table_name: str
-        :param primary_key: Primary key of table, defaults to "id"
-        :type primary_key: str, optional
+        :type table_name: `str`
+        :param id_col: Id column of table
+            If present, an additional column `id_col` is created
+            Ignored during the data writing process
+        :type id_col: `str`
         :param max_length: Maximum length of varchar, defaults to 100
         :type max_length: int, optional
         :return: SQLAlchemy Table of `data`
@@ -270,10 +220,10 @@ class SQLDatabaseConnection:
 
         metadata = MetaData(self.__engine)
         columns = []
-        if primary_key in data.columns:
-            data = data.drop(primary_key, axis=1)
 
-        columns.append(Column(primary_key, Integer, primary_key=True, nullable=False))
+        if id_col:
+            columns.append(Column(id_col, Integer, primary_key=True, nullable=False))
+
         for column in data.columns:
             nullable_status = False
             if data[column].dropna().shape[0] < data.shape[0]:
@@ -329,9 +279,8 @@ class SQLDatabaseConnection:
     def write_df_to_db(
         self,
         data: pd.DataFrame,
-        dbname: str,
         table_name: str,
-        primary_key: str = "id",
+        id_col: str = "id",
         drop_first: bool = False,
         clean_columns: bool = True,
         max_length: int = 100,
@@ -344,8 +293,8 @@ class SQLDatabaseConnection:
         :type dbname: str
         :param table_name: Name of table in the database
         :type table_name: str
-        :param primary_key: Primary key of table, defaults to "id"
-        :type primary_key: str, optional
+        :param id_col: Primary key of table, defaults to "id"
+        :type id_col: str, optional
         :param drop_first: if True, table `table_name` in database will be attempted to drop first.
         :type drop_first: bool
         :param clean_columns: If True, trailing/leading whitespaces and " will be stripped
@@ -355,20 +304,18 @@ class SQLDatabaseConnection:
         :rtype: CursorResult
         """
 
+        if id_col in data.columns:
+            data = data.drop(id_col, axis=1)
+
         if clean_columns:
             data = self._clean_columns(data=data)
 
         data = data.astype(object).where(pd.notnull(data), None)
 
-        engine = self.__engine
-        sa_session = Session(engine)
-
-        # _get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
-        # info = _get_column_info(cursor=connection.cursor(), table_name=table_name, dbname=dbname)
         table = self._get_table_from_dataframe(
             data=data,
             table_name=table_name,
-            primary_key=primary_key,
+            id_col=id_col,
             max_length=max_length,
         )
 
@@ -376,8 +323,8 @@ class SQLDatabaseConnection:
             self.delete_table(table_name=table_name)
 
         table = self._create_new_table(table=table)
-        info = self.get_column_info(sa_session=sa_session, table_name=table_name, dbname=dbname)
-        data = self._check_null(data=data, info=info)
+        info = self.get_column_info(table_name=table_name)
+        data = self._check_null(data=data, info=info, id_col=id_col)
         result = self._write_data_to_table(data=data, table=table)
 
         return result, table
@@ -386,3 +333,4 @@ class SQLDatabaseConnection:
         """Close the current connection to the database"""
 
         self.__engine.dispose()
+        self.__engine_all.dispose()
