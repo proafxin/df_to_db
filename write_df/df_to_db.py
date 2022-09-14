@@ -19,7 +19,13 @@ from write_df.common import saved_values
 
 
 class SQLDatabaseConnection:
-    """Database connection object for SQL databases"""
+    """Database connection object for SQL databases
+    Only database name `dbname` is stored.
+    Rest of the credentials are used only to retrieved the connection.
+    Two connections are created: one for the specific database `dbname`
+    and another generic connection with no database selected.
+    Be sure to call `connobj.close_connection()` after you are done.
+    """
 
     def __init__(
         self,
@@ -76,9 +82,9 @@ class SQLDatabaseConnection:
 
         :param query: SQL statement to execute
         :type query: `str`
-        :param db_specific: True if a database specific connection should be used.
-            If database is already created, set this to True.
-        :type db_specific: `str`
+        :param db_specific: True if a connection for a specific `dbname` should be used.
+            If database is already created, set this to True. Otherwise use the generic connection.
+        :type db_specific: `bool`
         :return: Result of executed query
         :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
@@ -101,9 +107,9 @@ class SQLDatabaseConnection:
             drop_database(self.__engine.url)
 
     def get_list_of_database(self):
-        """Get list of database for this connection
+        """Get list of database for this connection.
 
-        :return: List of string containing database names
+        :return: List of string containing database names.
         :rtype: `list[str]`
         """
 
@@ -115,11 +121,11 @@ class SQLDatabaseConnection:
         return database_names
 
     def get_column_info(self, table_name: str):
-        """Get table schema from database
+        """Get table schema from database.
 
-        :param table_name: Name of the table in database
+        :param table_name: Name of the table in database.
         :type table_name: `str`
-        :return: Pandas dataframe of table schema
+        :return: Pandas dataframe of table schema.
         :rtype: `pd.DataFrame`
         """
 
@@ -139,11 +145,11 @@ class SQLDatabaseConnection:
         return data
 
     def has_table(self, table_name: str):
-        """Check if the current database has table `table_name`
+        """Check if the current database has table `table_name`.
 
-        :param table_name: Name of the table to check
+        :param table_name: Name of the table to check.
         :type table_name: `str`
-        :return: True if `table_name` exists in current database
+        :return: True if `table_name` exists in current database.
         :rtype: `bool`
         """
 
@@ -172,11 +178,11 @@ class SQLDatabaseConnection:
         return data
 
     def clean_column(self, column: str):
-        """Clean name of dataframe column
+        """Clean name of dataframe column.
 
-        :param column: Name of column
+        :param column: Name of column.
         :type column: `str`
-        :return: Clean name of column
+        :return: Clean name of column.
         :rtype: `str`
         """
 
@@ -186,8 +192,8 @@ class SQLDatabaseConnection:
         """Clean the column names of the dataframe.
 
         :param data: DataFrame to clean.
-        :type data: pd.DataFrame
-        :return: Cleaned DataFrame
+        :type data: `pd.DataFrame`
+        :return: Cleaned DataFrame.
         :rtype: `pd.DataFrame`
         """
 
@@ -202,19 +208,19 @@ class SQLDatabaseConnection:
         id_col: str,
         max_length: int = 100,
     ):
-        """Get SQLAlchemy Table from dataframe
+        """Get SQLAlchemy Table from dataframe.
 
-        :param data: DataFrame of actual data to be written in the table
+        :param data: DataFrame of actual data to be written in the table.
         :type data: `pd.DataFrame`
-        :param table_name: Name of table
+        :param table_name: Name of table.
         :type table_name: `str`
-        :param id_col: Id column of table
-            If present, an additional column `id_col` is created
-            Ignored during the data writing process
+        :param id_col: Id column of table.
+            If present, an additional column `id_col` is created.
+            Ignored during the data writing process.
         :type id_col: `str`
-        :param max_length: Maximum length of varchar, defaults to 100
-        :type max_length: int, optional
-        :return: SQLAlchemy Table of `data`
+        :param max_length: Maximum length of varchar, defaults to 100.
+        :type max_length: `int`, optional
+        :return: SQLAlchemy Table of `data`.
         :rtype: `sqlalchemy.Table`
         """
 
@@ -248,9 +254,9 @@ class SQLDatabaseConnection:
 
     def _write_data_to_table(self, data: pd.DataFrame, table: Table):
 
-        """Write `data` to `table` using connection from `engine`
+        """Write dataframe `data` to `table` using connection from `engine`.
 
-        :return: Result with rows written to table
+        :return: Result with rows written to table.
         :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
 
@@ -265,9 +271,9 @@ class SQLDatabaseConnection:
             return result
 
     def delete_table(self, table_name: str):
-        """Drop table `table_name` from the current database if it exists
+        """Drop table `table_name` from the current database if it exists.
 
-        :param table: Table to delete
+        :param table: Table to delete.
         :type table: `Table`
         """
 
@@ -288,20 +294,21 @@ class SQLDatabaseConnection:
         """Write `data` to Table `table_name`
 
         :param data: Pandas dataframe containing data to write
-        :type data: pd.DataFrame
+        :type data: `pd.DataFrame`
         :param dbname: Name of the database
-        :type dbname: str
+        :type dbname: `str`
         :param table_name: Name of table in the database
-        :type table_name: str
-        :param id_col: Primary key of table, defaults to "id"
-        :type id_col: str, optional
-        :param drop_first: if True, table `table_name` in database will be attempted to drop first.
-        :type drop_first: bool
+        :type table_name: `str`
+        :param id_col: Id column of table if exists, defaults to "id"
+            Should be set to `None` if not present in data.
+        :type id_col: `str`, optional
+        :param drop_first: If True, table `table_name` in database will be attempted to drop first.
+        :type drop_first: `bool`
         :param clean_columns: If True, trailing/leading whitespaces and " will be stripped
             off column names, defaults to "True"
-        :type clean_columns: bool
+        :type clean_columns: `bool`
         :return: Cursor with result of query execution
-        :rtype: CursorResult
+        :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
 
         if id_col in data.columns:
