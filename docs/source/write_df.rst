@@ -4,6 +4,14 @@ write\_df package
 Submodules
 ----------
 
+write\_df.common module
+-----------------------
+
+.. automodule:: write_df.common
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 write\_df.df\_to\_db module
 ---------------------------
 
