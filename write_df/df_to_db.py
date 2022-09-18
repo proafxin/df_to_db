@@ -48,9 +48,9 @@ class SQLDatabaseConnection:
             password=password,
             port=port,
         )
-        self.__engine_all = self._get_generic_engine(
-            host=host, user=user, password=password, port=port
-        )
+        # self.__engine_all = self._get_generic_engine(
+        #     host=host, user=user, password=password, port=port
+        # )
 
         if not database_exists(url=self.__engine.url):
             create_database(self.__engine.url)
@@ -62,22 +62,11 @@ class SQLDatabaseConnection:
 
         connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
 
-        engine = create_engine(connection_string, future=True, pool_pre_ping=True)
+        engine = create_engine(connection_string, future=True)
 
         return engine
 
-    def _get_generic_engine(self, host: str, user: str, password: str, port: int):
-
-        dialect = saved_values[self.__dbtype]["dialect"]
-        driver = saved_values[self.__dbtype]["driver"]
-
-        connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}"
-
-        engine = create_engine(connection_string, future=True, pool_pre_ping=True)
-
-        return engine
-
-    def execute_single_query(self, query: str, db_specific: bool):
+    def get_data_from_query(self, query: str):
         """Execute a single query using this connection
 
         :param query: SQL statement to execute
@@ -89,22 +78,8 @@ class SQLDatabaseConnection:
         :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
 
-        engine = self.__engine
-        if not db_specific:
-            engine = self.__engine_all
-        conn = engine.connect()
-        result = conn.execute(text(query))
-        conn.commit()
-
-        conn.close()
-
-        return result
-
-    def delete_database(self):
-        """Drops the database `dbname` provided during the creation of connection object."""
-
-        if database_exists(self.__engine.url):
-            drop_database(self.__engine.url)
+        with self.__engine.connect() as conn:
+            return pd.read_sql(sql=text(query), con=conn)
 
     def get_list_of_database(self):
         """Get list of database for this connection.
@@ -114,9 +89,9 @@ class SQLDatabaseConnection:
         """
 
         query = saved_values[self.__dbtype]["query"]["db_list"]
-        database_names = self.execute_single_query(query=query, db_specific=False)
 
-        database_names = [name[0] for name in database_names]
+        res = self.get_data_from_query(query=query)
+        database_names = res[res.columns[0]].to_numpy()
 
         return database_names
 
@@ -137,12 +112,13 @@ class SQLDatabaseConnection:
         session = sa_session.execute(query)
         cursor = session.cursor
         cols = [detail[0] for detail in cursor.description]
-        info = cursor.fetchall()
+        res = cursor.fetchall()
+        res = [list(row) for row in res]
 
-        data = pd.DataFrame(info, columns=cols)
-        data.columns = [column.lower() for column in data.columns]
+        info = pd.DataFrame(res, columns=cols)
+        info.columns = [column.lower() for column in info.columns]
 
-        return data
+        return info
 
     def has_table(self, table_name: str):
         """Check if the current database has table `table_name`.
@@ -153,9 +129,11 @@ class SQLDatabaseConnection:
         :rtype: `bool`
         """
 
-        return self.__engine.dialect.has_table(
-            connection=self.__engine.connect(), table_name=table_name
-        )
+        with self.__engine.connect() as connection:
+            if "server" in self.__dbtype:
+                return self.__engine.dialect.has_table(connection=connection, tablename=table_name)
+            else:
+                return self.__engine.dialect.has_table(connection=connection, table_name=table_name)
 
     def _check_null(self, data: pd.DataFrame, info: pd.DataFrame, id_col: str):
 
@@ -166,8 +144,10 @@ class SQLDatabaseConnection:
         for column, status in zip(columns, nullable_status):
             if id_col == column:
                 continue
+            if column not in data.columns:
+                raise ValueError(f"{column} not in columns: {data.columns.tolist()}")
 
-            if status == "NO":
+            if status.lower() == "no":
                 if data[column].dropna().shape[0] < data.shape[0]:
                     raise ValueError(f"`{column}` is non-nullable but has null value")
             columns_valid.append(column)
@@ -340,4 +320,3 @@ class SQLDatabaseConnection:
         """Close the current connection to the database"""
 
         self.__engine.dispose()
-        self.__engine_all.dispose()

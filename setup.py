@@ -27,5 +27,6 @@ setup(
         "sphinx-rtd-theme",
         "psycopg2",
         "sqlalchemy-utils",
+        "pymssql",
     ],
 )
