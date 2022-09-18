@@ -8,6 +8,7 @@ Write a pandas dataframe to a database directly. The `df.to_sql` is severely ins
 ## Supported So Far
 * MySQL
 * Postgresql
+* SQL Server
 
 
 # Notes for Linux
