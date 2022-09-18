@@ -29,9 +29,18 @@ POSTGRE_CONNECTION = SQLDatabaseConnection(
     password=os.environ["POSTGRESQL_PASSWORD"],
     port=os.environ["POSTGRESQL_PORT"],
 )
+SQLSERVER_CONNECTION = SQLDatabaseConnection(
+    dbtype="sqlserver",
+    host=os.environ["SQLSERVER_HOST"],
+    dbname=DBNAME,
+    user=os.environ["SQLSERVER_USER"],
+    password=os.environ["SQLSERVER_PASSWORD"],
+    port=os.environ["SQLSERVER_PORT"],
+)
 
 CONNECTIONS = [
     ("mysql", {"conn": MYSQL_CONNECTION}),
+    ("sqlserver", {"conn": SQLSERVER_CONNECTION}),
     ("postgresql", {"conn": POSTGRE_CONNECTION}),
 ]
 
@@ -61,15 +70,13 @@ class TestWriteToSQL:
     __dbname = DBNAME
     connections = CONNECTIONS
 
-    # @pytest.mark.order(1)
     def test_create_database(self, conn: SQLDatabaseConnection):
         """Test if database is indeed created"""
 
         database_names = conn.get_list_of_database()
         assert self.__dbname in database_names
 
-    # @pytest.mark.order(2)
-    def test_mysql_write_without_primary_key_no_null(self, conn: SQLDatabaseConnection):
+    def test_write_without_primary_key_no_null(self, conn: SQLDatabaseConnection):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -87,8 +94,7 @@ class TestWriteToSQL:
         assert result.rowcount == data.shape[0]
         conn.delete_table(table_name=table_name)
 
-    # @pytest.mark.order(3)
-    def test_mysql_write_with_primary_key_and_float(self, conn: SQLDatabaseConnection):
+    def test_write_with_primary_key_and_float(self, conn: SQLDatabaseConnection):
         """Test writing dataframe with primary key and float data"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -110,8 +116,7 @@ class TestWriteToSQL:
         assert result.rowcount == data.shape[0]
         conn.delete_table(table_name=table_name)
 
-    # @pytest.mark.order(4)
-    def test_mysql_write_with_primary_key_null(self, conn: SQLDatabaseConnection):
+    def test_write_with_primary_key_null(self, conn: SQLDatabaseConnection):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -119,6 +124,7 @@ class TestWriteToSQL:
 
         data = pd.read_csv(StringIO(response.content.decode()))
         data["test"] = [random.randint(1, data.shape[0]) for i in range(data.shape[0])]
+        data["test"] = data["test"].astype(int)
         data["y"] = [random.random() for i in range(data.shape[0])]
         data.at[0, "y"] = np.nan
         table_name = "test__table__"
@@ -129,23 +135,6 @@ class TestWriteToSQL:
             id_col=None,
             drop_first=True,
         )
-        assert conn.has_table(table_name=table_name) is True
         assert isinstance(result, CursorResult)
         assert result.rowcount == data.shape[0]
         conn.delete_table(table_name=table_name)
-
-
-# @pytest.mark.order(9)
-class TestDropDatabase:
-    """Test database drop methods"""
-
-    __dbname = DBNAME
-    connections = CONNECTIONS
-
-    def test_drop_database(self, conn: SQLDatabaseConnection):
-        """Test database deletion"""
-
-        conn.delete_database()
-        database_names = conn.get_list_of_database()
-        assert self.__dbname not in database_names
-        conn.close_connection()
