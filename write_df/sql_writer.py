@@ -37,7 +37,7 @@ class SQLDatabaseConnection:
         port: int,
     ):
 
-        assert dbtype in saved_values
+        assert dbtype in saved_values, f"{dbtype} not in {list(saved_values.keys())}"
         assert dbname is not None, "`dbname` must be a valid database name"
         self.__dbtype = dbtype
         self.__dbname = dbname
@@ -48,9 +48,6 @@ class SQLDatabaseConnection:
             password=password,
             port=port,
         )
-        # self.__engine_all = self._get_generic_engine(
-        #     host=host, user=user, password=password, port=port
-        # )
 
         if not database_exists(url=self.__engine.url):
             create_database(self.__engine.url)
@@ -67,24 +64,21 @@ class SQLDatabaseConnection:
         return engine
 
     def get_data_from_query(self, query: str):
-        """Execute a single query using this connection
+        """Execute a single query on the current database.
 
-        :param query: SQL statement to execute
+        :param query: SQL statement to execute.
         :type query: `str`
-        :param db_specific: True if a connection for a specific `dbname` should be used.
-            If database is already created, set this to True. Otherwise use the generic connection.
-        :type db_specific: `bool`
-        :return: Result of executed query
-        :rtype: `sqlalchemy.engine.cursor.CursorResult`
+        :return: Pandas dataframe with result of query.
+        :rtype: `pd.DataFrame`
         """
 
         with self.__engine.connect() as conn:
             return pd.read_sql(sql=text(query), con=conn)
 
     def get_list_of_database(self):
-        """Get list of database for this connection.
+        """Get list of databases.
 
-        :return: List of string containing database names.
+        :return: List containing database names.
         :rtype: `list[str]`
         """
 
@@ -100,7 +94,7 @@ class SQLDatabaseConnection:
 
         :param table_name: Name of the table in database.
         :type table_name: `str`
-        :return: Pandas dataframe of table schema.
+        :return: Pandas dataframe of table schema information.
         :rtype: `pd.DataFrame`
         """
 
@@ -117,6 +111,8 @@ class SQLDatabaseConnection:
 
         info = pd.DataFrame(res, columns=cols)
         info.columns = [column.lower() for column in info.columns]
+
+        session.close()
 
         return info
 
@@ -157,27 +153,13 @@ class SQLDatabaseConnection:
 
         return data
 
-    def clean_column(self, column: str):
-        """Clean name of dataframe column.
-
-        :param column: Name of column.
-        :type column: `str`
-        :return: Clean name of column.
-        :rtype: `str`
-        """
+    def _clean_column(self, column: str):
 
         return str(column).strip().strip('"')
 
     def _clean_columns(self, data: pd.DataFrame):
-        """Clean the column names of the dataframe.
 
-        :param data: DataFrame to clean.
-        :type data: `pd.DataFrame`
-        :return: Cleaned DataFrame.
-        :rtype: `pd.DataFrame`
-        """
-
-        data.columns = [self.clean_column(column) for column in data.columns]
+        data.columns = [self._clean_column(column) for column in data.columns]
 
         return data
 
@@ -188,21 +170,6 @@ class SQLDatabaseConnection:
         id_col: str,
         max_length: int = 100,
     ):
-        """Get SQLAlchemy Table from dataframe.
-
-        :param data: DataFrame of actual data to be written in the table.
-        :type data: `pd.DataFrame`
-        :param table_name: Name of table.
-        :type table_name: `str`
-        :param id_col: Id column of table.
-            If present, an additional column `id_col` is created.
-            Ignored during the data writing process.
-        :type id_col: `str`
-        :param max_length: Maximum length of varchar, defaults to 100.
-        :type max_length: `int`, optional
-        :return: SQLAlchemy Table of `data`.
-        :rtype: `sqlalchemy.Table`
-        """
 
         metadata = MetaData(self.__engine)
         columns = []
@@ -233,12 +200,6 @@ class SQLDatabaseConnection:
         return table
 
     def _write_data_to_table(self, data: pd.DataFrame, table: Table):
-
-        """Write dataframe `data` to `table` using connection from `engine`.
-
-        :return: Result with rows written to table.
-        :rtype: `sqlalchemy.engine.cursor.CursorResult`
-        """
 
         records = data.to_dict("records")
 
@@ -273,21 +234,23 @@ class SQLDatabaseConnection:
     ):
         """Write `data` to Table `table_name`
 
-        :param data: Pandas dataframe containing data to write
+        :param data: Pandas dataframe containing data to write.
         :type data: `pd.DataFrame`
-        :param dbname: Name of the database
+        :param dbname: Name of the database.
         :type dbname: `str`
-        :param table_name: Name of table in the database
+        :param table_name: Name of table in the database.
         :type table_name: `str`
-        :param id_col: Id column of table if exists, defaults to "id"
+        :param id_col: Id column of table if exists, defaults to "id".
             Should be set to `None` if not present in data.
         :type id_col: `str`, optional
         :param drop_first: If True, table `table_name` in database will be attempted to drop first.
         :type drop_first: `bool`
         :param clean_columns: If True, trailing/leading whitespaces and " will be stripped
-            off column names, defaults to "True"
+            off column names, defaults to "True".
         :type clean_columns: `bool`
-        :return: Cursor with result of query execution
+        :param max_length: Maximum length of VARCHAR type columns, defaults to 100.
+        :type max_length: `int`
+        :return: Cursor with result of query execution.
         :rtype: `sqlalchemy.engine.cursor.CursorResult`
         """
 
@@ -314,7 +277,7 @@ class SQLDatabaseConnection:
         data = self._check_null(data=data, info=info, id_col=id_col)
         result = self._write_data_to_table(data=data, table=table)
 
-        return result, table
+        return result
 
     def close_connection(self):
         """Close the current connection to the database"""

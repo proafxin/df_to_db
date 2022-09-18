@@ -84,7 +84,7 @@ class TestWriteToSQL:
 
         data = pd.read_csv(StringIO(response.content.decode()))
         table_name = "test__table__"
-        result, _ = conn.write_df_to_db(
+        result = conn.write_df_to_db(
             data=data,
             table_name=table_name,
             drop_first=True,
@@ -106,7 +106,7 @@ class TestWriteToSQL:
         data["y"] = [random.random() for i in range(data.shape[0])]
         table_name = "test__table__"
 
-        result, _ = conn.write_df_to_db(
+        result = conn.write_df_to_db(
             data=data,
             table_name=table_name,
             drop_first=True,
@@ -129,7 +129,7 @@ class TestWriteToSQL:
         data.at[0, "y"] = np.nan
         table_name = "test__table__"
 
-        result, _ = conn.write_df_to_db(
+        result = conn.write_df_to_db(
             data=data,
             table_name=table_name,
             id_col=None,
