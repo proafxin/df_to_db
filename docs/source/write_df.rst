@@ -12,10 +12,10 @@ write\_df.common module
    :undoc-members:
    :show-inheritance:
 
-write\_df.df\_to\_db module
----------------------------
+write\_df.sql\_writer module
+----------------------------
 
-.. automodule:: write_df.df_to_db
+.. automodule:: write_df.sql_writer
    :members:
    :undoc-members:
    :show-inheritance:
