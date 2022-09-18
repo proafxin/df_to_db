@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from requests import get
 from sqlalchemy.engine.cursor import CursorResult
-from write_df.df_to_db import SQLDatabaseConnection
+from write_df.sql_writer import SQLDatabaseConnection
 
 DBNAME = "__test_db__"
 
