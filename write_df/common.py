@@ -30,3 +30,4 @@ saved_values = {
         },
     },
 }
+nosql_dbtypes = ["mongo"]
