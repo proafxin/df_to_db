@@ -28,5 +28,7 @@ setup(
         "psycopg2",
         "sqlalchemy-utils",
         "pymssql",
+        "tox",
+        "tox-gh-actions",
     ],
 )
