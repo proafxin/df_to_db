@@ -1,4 +1,4 @@
-"""Write a pandas dataframe to a database table"""
+"""Write a pandas dataframe to a SQL database table"""
 
 
 import pandas as pd
@@ -18,7 +18,7 @@ from sqlalchemy_utils import create_database, database_exists
 from write_df.common import saved_values
 
 
-class SQLDatabaseConnection:
+class SQLDatabaseWriter:
     """Database connection object for SQL databases
     Only database name `dbname` is stored.
     Rest of the credentials are used only to retrieved the connection.

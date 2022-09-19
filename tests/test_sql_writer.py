@@ -8,11 +8,11 @@ import numpy as np
 import pandas as pd
 from requests import get
 from sqlalchemy.engine.cursor import CursorResult
-from write_df.sql_writer import SQLDatabaseConnection
+from write_df.sql_writer import SQLDatabaseWriter
 
 DBNAME = "__test_db__"
 
-MYSQL_CONNECTION = SQLDatabaseConnection(
+MYSQL_CONNECTION = SQLDatabaseWriter(
     dbtype="mysql",
     host=os.environ["MYSQL_HOST"],
     dbname=DBNAME,
@@ -21,7 +21,7 @@ MYSQL_CONNECTION = SQLDatabaseConnection(
     port=os.environ["MYSQL_PORT"],
 )
 
-POSTGRE_CONNECTION = SQLDatabaseConnection(
+POSTGRE_CONNECTION = SQLDatabaseWriter(
     dbtype="postgresql",
     host=os.environ["POSTGRESQL_HOST"],
     dbname=DBNAME,
@@ -29,7 +29,7 @@ POSTGRE_CONNECTION = SQLDatabaseConnection(
     password=os.environ["POSTGRESQL_PASSWORD"],
     port=os.environ["POSTGRESQL_PORT"],
 )
-# SQLSERVER_CONNECTION = SQLDatabaseConnection(
+# SQLSERVER_CONNECTION = SQLDatabaseWriter(
 #     dbtype="sqlserver",
 #     host=os.environ["SQLSERVER_HOST"],
 #     dbname=DBNAME,
@@ -70,13 +70,13 @@ class TestWriteToSQL:
     __dbname = DBNAME
     connections = CONNECTIONS
 
-    def test_create_database(self, conn: SQLDatabaseConnection):
+    def test_create_database(self, conn: SQLDatabaseWriter):
         """Test if database is indeed created"""
 
         database_names = conn.get_list_of_database()
         assert self.__dbname in database_names
 
-    def test_write_without_primary_key_no_null(self, conn: SQLDatabaseConnection):
+    def test_write_without_primary_key_no_null(self, conn: SQLDatabaseWriter):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -94,7 +94,7 @@ class TestWriteToSQL:
         assert result.rowcount == data.shape[0]
         conn.delete_table(table_name=table_name)
 
-    def test_write_with_primary_key_and_float(self, conn: SQLDatabaseConnection):
+    def test_write_with_primary_key_and_float(self, conn: SQLDatabaseWriter):
         """Test writing dataframe with primary key and float data"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
@@ -116,7 +116,7 @@ class TestWriteToSQL:
         assert result.rowcount == data.shape[0]
         conn.delete_table(table_name=table_name)
 
-    def test_write_with_primary_key_null(self, conn: SQLDatabaseConnection):
+    def test_write_with_primary_key_null(self, conn: SQLDatabaseWriter):
         """Test writing dataframe without primary key"""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
