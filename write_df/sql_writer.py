@@ -57,7 +57,7 @@ class SQLDatabaseConnection:
         dialect = saved_values[self.__dbtype]["dialect"]
         driver = saved_values[self.__dbtype]["driver"]
 
-        connection_string = f"{dialect}+{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
+        connection_string = f"{dialect}{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
 
         engine = create_engine(connection_string, future=True)
 

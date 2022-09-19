@@ -4,7 +4,7 @@
 saved_values = {
     "sqlserver": {
         "dialect": "mssql",
-        "driver": "pymssql",
+        "driver": "+pymssql",
         "query": {
             "db_list": "SELECT name FROM master.sys.databases;",
             "table_list": "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_CATALOG='{}';",
@@ -13,7 +13,7 @@ saved_values = {
     },
     "mysql": {
         "dialect": "mysql",
-        "driver": "mysqldb",
+        "driver": "+mysqldb",
         "query": {
             "db_list": "SHOW DATABASES;",
             "table_list": "SHOW TABLES FROM `{}`",
@@ -22,7 +22,7 @@ saved_values = {
     },
     "postgresql": {
         "dialect": "postgresql",
-        "driver": "psycopg2",
+        "driver": "+psycopg2",
         "query": {
             "db_list": "select datname from pg_database;",
             "table_list": "select * from pg_catalog.pg_tables where schemaname='{}';",
