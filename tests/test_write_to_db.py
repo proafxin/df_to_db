@@ -29,18 +29,18 @@ POSTGRE_CONNECTION = SQLDatabaseConnection(
     password=os.environ["POSTGRESQL_PASSWORD"],
     port=os.environ["POSTGRESQL_PORT"],
 )
-SQLSERVER_CONNECTION = SQLDatabaseConnection(
-    dbtype="sqlserver",
-    host=os.environ["SQLSERVER_HOST"],
-    dbname=DBNAME,
-    user=os.environ["SQLSERVER_USER"],
-    password=os.environ["SQLSERVER_PASSWORD"],
-    port=os.environ["SQLSERVER_PORT"],
-)
+# SQLSERVER_CONNECTION = SQLDatabaseConnection(
+#     dbtype="sqlserver",
+#     host=os.environ["SQLSERVER_HOST"],
+#     dbname=DBNAME,
+#     user=os.environ["SQLSERVER_USER"],
+#     password=os.environ["SQLSERVER_PASSWORD"],
+#     port=os.environ["SQLSERVER_PORT"],
+# )
 
 CONNECTIONS = [
     ("mysql", {"conn": MYSQL_CONNECTION}),
-    ("sqlserver", {"conn": SQLSERVER_CONNECTION}),
+    # ("sqlserver", {"conn": SQLSERVER_CONNECTION}),
     ("postgresql", {"conn": POSTGRE_CONNECTION}),
 ]
 
