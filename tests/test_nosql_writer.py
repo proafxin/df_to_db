@@ -54,6 +54,7 @@ class TestNoSQLDatabaseWriter:
             assert isinstance(database_name, str)
 
     def test_write_to_collection(self, conn: NoSQLDatabaseWriter):
+        """Test writing data to collections."""
 
         response = get(url="https://people.sc.fsu.edu/~jburkardt/data/csv/cities.csv")
         assert response.status_code == 200
@@ -80,6 +81,7 @@ class TestNoSQLDatabaseWriter:
         assert collection_name in collection_names
 
     def test_delete_collection(self, conn: NoSQLDatabaseWriter):
+        """Test collection dropping."""
 
         collection_name = "_test_collection_"
         conn.delete_collection(collection_name=collection_name)
@@ -87,6 +89,7 @@ class TestNoSQLDatabaseWriter:
         assert collection_name not in collection_names
 
     def test_drop_database(self, conn: NoSQLDatabaseWriter):
+        """Test dropping database."""
 
         database_names = conn.get_list_of_databases()
         assert DBNAME not in database_names

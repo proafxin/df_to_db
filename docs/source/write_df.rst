@@ -12,6 +12,14 @@ write\_df.common module
    :undoc-members:
    :show-inheritance:
 
+write\_df.nosql\_writer module
+------------------------------
+
+.. automodule:: write_df.nosql_writer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 write\_df.sql\_writer module
 ----------------------------
 

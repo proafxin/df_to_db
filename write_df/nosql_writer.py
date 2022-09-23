@@ -31,21 +31,21 @@ class MongoDatabaseWriter:
 
         return client
 
-    def get_list_of_databases(self):
+    def _get_list_of_databases(self):
 
         return self.__client.list_database_names()
 
-    def get_list_of_collections(self):
+    def _get_list_of_collections(self):
 
         return self.__db.list_collection_names()
 
-    def get_or_create_collection(self, collection_name: str):
+    def _get_or_create_collection(self, collection_name: str):
 
         collection = self.__db[collection_name]
 
         return collection
 
-    def write_data_to_collection(self, collection_name: str, data: pd.DataFrame):
+    def _write_data_to_collection(self, data: pd.DataFrame, collection_name: str):
 
         collection = self.get_or_create_collection(collection_name=collection_name)
         documents = data.to_dict("records")
@@ -54,21 +54,21 @@ class MongoDatabaseWriter:
 
         return res
 
-    def get_document_count(self, collection_name: str):
+    def _get_document_count(self, collection_name: str):
 
         collection = self.get_or_create_collection(collection_name=collection_name)
 
         return collection.count_documents({})
 
-    def delete_collection(self, collection_name: str):
+    def _delete_collection(self, collection_name: str):
 
         self.__db.drop_collection(collection_name)
 
-    def delete_database(self):
+    def _delete_database(self):
 
         self.__client.drop_database(name_or_database=self.__dbname)
 
-    def close_connection(self):
+    def _close_connection(self):
 
         self.__client.close()
 
@@ -96,33 +96,73 @@ class NoSQLDatabaseWriter:
         return None
 
     def get_list_of_databases(self):
+        """List names of databses in this connection.
 
-        return self.__writer.get_list_of_databases()
+        :return: Database names.
+        :rtype: `list[str]`
+        """
+
+        return self.__writer._get_list_of_databases()
 
     def get_list_of_collections(self):
+        """List names of collections in the current database.
 
-        return self.__writer.get_list_of_collections()
+        :return: Collection names.
+        :rtype: `list[str]`
+        """
+
+        return self.__writer._get_list_of_collections()
 
     def get_or_create_collection(self, collection_name: str):
+        """Get object for the collection `collection_name`.
 
-        return self.__writer.get_or_create_collection(collection_name=collection_name)
+        :param collection_name: Name of the collection.
+        :type collection_name: `str`
+        :return: Collection object.
+        :rtype: `pymongo.collection.Collection`
+        """
+
+        return self.__writer._get_or_create_collection(collection_name=collection_name)
 
     def write_data_to_collection(self, collection_name: str, data: pd.DataFrame):
+        """Write dataframe `data` to the collection `collection_name`.
 
-        return self.__writer.write_data_to_collection(collection_name=collection_name, data=data)
+        :param collection_name: Name of the collection.
+        :type collection_name: `str`
+        :param data: Dataframe to write.
+        :type data: `pd.DataFrame`
+        :return: Object with ids of inserted documents.
+        :rtype: `pymongo.results.InsertManyResult`
+        """
+
+        return self.__writer._write_data_to_collection(collection_name=collection_name, data=data)
 
     def get_document_count(self, collection_name: str):
+        """Get number of documents in collection `collection_name`.
 
-        return self.__writer.get_document_count(collection_name=collection_name)
+        :param collection_name: Name of the collection.
+        :type collection_name: `str`
+        :return: Document count.
+        :rtype: `int`
+        """
+
+        return self.__writer._get_document_count(collection_name=collection_name)
 
     def delete_collection(self, collection_name: str):
+        """Delete collection `collection_name`.
 
-        self.__writer.delete_collection(collection_name=collection_name)
+        :param collection_name: Name of the collection.
+        :type collection_name: `str`
+        """
+
+        self.__writer._delete_collection(collection_name=collection_name)
 
     def delete_database(self):
+        """Drop the current database."""
 
-        self.__writer.delete_database()
+        self.__writer._delete_database()
 
     def close_connection(self):
+        """Close the current connection."""
 
-        self.__writer.close_connection()
+        self.__writer._close_connection()
