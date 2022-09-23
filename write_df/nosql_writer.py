@@ -47,7 +47,7 @@ class MongoDatabaseWriter:
 
     def _write_data_to_collection(self, data: pd.DataFrame, collection_name: str):
 
-        collection = self.get_or_create_collection(collection_name=collection_name)
+        collection = self._get_or_create_collection(collection_name=collection_name)
         documents = data.to_dict("records")
 
         res = collection.insert_many(documents=documents)
@@ -56,7 +56,7 @@ class MongoDatabaseWriter:
 
     def _get_document_count(self, collection_name: str):
 
-        collection = self.get_or_create_collection(collection_name=collection_name)
+        collection = self._get_or_create_collection(collection_name=collection_name)
 
         return collection.count_documents({})
 
