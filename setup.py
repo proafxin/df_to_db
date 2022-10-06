@@ -3,8 +3,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="dataframe-to-database",
-    version="0.1.0",
+    name="df-to-db",
+    version="1.1",
     author="Masum Billal",
     author_email="billalmasum93@gmail.com",
     packages=find_packages(),
