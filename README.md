@@ -21,6 +21,41 @@ You may need some packages otherwise `mysqlclient` installation may fail. Comman
 
 Create a virtual environment and activate it. Inside the virtual environment, run `pip install -r requirements.txt`. If you get this error `git clone --filter=blob:none --quiet 'ssh://****@github.com/proafxin/df_to_db.git' '..\df_to_db\env\src\dataframe-to-database' did not run successfully`, then go to `requirements.txt` and remove the line `-e git+ssh://git@github.com/proafxin/df_to_db.git...`. Now the command should run succesfully. If you are on windows and get the following error `tests run-test: commands[0] | python3 calculate_coverage.py WARNING: test command found but not installed in testenv`, then replace `python3 calculate_coverage.py` by `python calculate_coverage.py` or make `python3` available in tox.
 
+# Example Usage
+
+## Writing to SQL Database
+
+Create a writer object. For example, if you want to create a writer object for SQL databases,
+
+    from write_df.sql_writer import SQLDatabaseWriter
+
+    writer = SQLDatabaseWriter(
+        dbtype="mysql",
+        host=MYSQL_HOST,
+        dbname=DBNAME,
+        user=MYSQL_USER,
+        password=MYSQL_PASSWORD,
+        port=MYSQL_PORT,
+    )
+
+Get the list of databases using the connection.
+
+    database_names = writer.get_list_of_database()
+
+Check if the database has a certain table `table_name`.
+
+    writer.has_table(table_name=table_name)
+
+Write the dataframe to the database using this connection.
+
+    result = writer.write_df_to_db(
+        data=data,
+        table_name=table_name,
+        id_col=None,
+        drop_first=True,
+    )
+
+This `result` is an SQLAlchemy `CursorResult` object. `id_col` is the column name of the primary key (corresponding to `id` column of a table). If this column exists in the dataframe itself, pass the name of the column in this argument.
 
 
 ## Generate Documentation
