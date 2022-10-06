@@ -3,7 +3,7 @@
 
 # Dataframe to Database
 
-Write a pandas dataframe to a database directly. The `df.to_sql` is severely insufficient for this purpose. It not only overwrites the current table, it also requires manually creating an `SQLAlchemy` engine for connection. `dataframe-to-database` is meant to take all the extra steps away from this writing process. Currently, the goal is to support both SQL and NoSQL databases including data warehouse such as `Google BigQuery` or `Apache Cassandra`. For SQL databases, `SQLAlchemy` is used internally for generalizing all SQL database connections.
+Write a pandas dataframe to a database directly. The `df.to_sql` is severely insufficient for this purpose. It not only overwrites the current table, it also requires manually creating an `SQLAlchemy` engine for connection. `df-to-db` is meant to take all the extra steps away from this writing process. Currently, the goal is to support both SQL and NoSQL databases including data warehouse such as `Google BigQuery` or `Apache Cassandra`. For SQL databases, `SQLAlchemy` is used internally for generalizing all SQL database connections.
 
 ## Supported So Far
 * MySQL
@@ -27,33 +27,41 @@ Create a virtual environment and activate it. Inside the virtual environment, ru
 
 Create a writer object. For example, if you want to create a writer object for SQL databases,
 
-    from write_df.sql_writer import SQLDatabaseWriter
+```python
+from write_df.sql_writer import SQLDatabaseWriter
 
-    writer = SQLDatabaseWriter(
-        dbtype="mysql",
-        host=MYSQL_HOST,
-        dbname=DBNAME,
-        user=MYSQL_USER,
-        password=MYSQL_PASSWORD,
-        port=MYSQL_PORT,
-    )
+writer = SQLDatabaseWriter(
+    dbtype="mysql",
+    host=MYSQL_HOST,
+    dbname=DBNAME,
+    user=MYSQL_USER,
+    password=MYSQL_PASSWORD,
+    port=MYSQL_PORT,
+)
+```
 
 Get the list of databases using the connection.
 
-    database_names = writer.get_list_of_database()
+```python
+database_names = writer.get_list_of_database()
+```
 
 Check if the database has a certain table `table_name`.
 
-    writer.has_table(table_name=table_name)
+```python
+writer.has_table(table_name=table_name)
+```
 
 Write the dataframe to the database using this connection.
 
-    result = writer.write_df_to_db(
-        data=data,
-        table_name=table_name,
-        id_col=None,
-        drop_first=True,
-    )
+```python
+result = writer.write_df_to_db(
+    data=data,
+    table_name=table_name,
+    id_col=None,
+    drop_first=True,
+)
+```
 
 `data` is the actual dataframe to write. This `result` is an SQLAlchemy `CursorResult` object. `id_col` is the column name of the primary key (corresponding to `id` column of a table). If this column exists in the dataframe itself, pass the name of the column in this argument. If `drop_first` is `True`, then the table will be dropped and created from the dataframe schema. Otherwise, the writer will read the schema from the database, check whether there is any null data in non-nullable columns and then try to write the data to the table. Needless to say, the column names must be identical in dataframe and the table.
 
@@ -62,34 +70,46 @@ Write the dataframe to the database using this connection.
 
 Create the writer object.
 
-    writer = NoSQLDatabaseWriter(
-        dbtype="mongo",
-        host=os.environ["MONGO_HOST"],
-        dbname=DBNAME,
-        user=os.environ["MONGO_USER"],
-        password=os.environ["MONGO_PASSWORD"],
-        port=int(os.environ["MONGO_PORT"]),
-    )
+```python
+writer = NoSQLDatabaseWriter(
+    dbtype="mongo",
+    host=os.environ["MONGO_HOST"],
+    dbname=DBNAME,
+    user=os.environ["MONGO_USER"],
+    password=os.environ["MONGO_PASSWORD"],
+    port=int(os.environ["MONGO_PORT"]),
+)
+```
 
 Get list of databases.
 
-    dbnames = writer.get_list_of_databases()
+```python
+dbnames = writer.get_list_of_databases()
+```
 
 Get list of collections of the current database.
 
-    collection_names = writer.get_list_of_collections()
+```python
+collection_names = writer.get_list_of_collections()
+```
 
 Get a certain collection or create it.
 
-    collection = writer.get_or_create_collection(collection_name=collection_name)
+```python
+collection = writer.get_or_create_collection(collection_name=collection_name)
+```
 
 Get document count of a collection.
 
-    doc_count = writer.get_document_count(collection_name=collection_name)
+```python
+doc_count = writer.get_document_count(collection_name=collection_name)
+```
 
 Write to a collection `collection_name`.
 
-    result = write_data_to_collection(collection_name=collection_name, data=data)
+```python
+result = write_data_to_collection(collection_name=collection_name, data=data)
+```
 
 
 
@@ -100,22 +120,24 @@ Run `sphinx-quickstart`. Choose `y` when it asks to seperate build and source di
 
 Change to `docs/source` directory. In `conf.py`, add the following lines at the start of the script. 
 
-    
-    import os
-    import sys
-    sys.path.insert(0, os.path.abspath("../.."))
-    
+```python
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath("../.."))
+```
+
 and save it. Add `"sphinx.ext.autodoc",` to the `extensions` list. Run `python -m pip install -U sphinx_rtd_theme` and set `html_theme = "sphinx_rtd_theme"`.
 
 In `index.rst`, add `modules` to toctree. The structure should look like this:
 
-    
-    .. toctree::
-    :maxdepth: 2
-    :caption: Contents:
+```
+.. toctree::
+:maxdepth: 2
+:caption: Contents:
 
-    modules
-    
+modules
+```
 
 Run `sphinx-apidoc -f -o . ../../ ../../calculate_coverage.py  ../../setup.py ../../tests/`. It should generate the necessary ReStructuredText files for documentation.
 
