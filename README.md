@@ -55,7 +55,42 @@ Write the dataframe to the database using this connection.
         drop_first=True,
     )
 
-This `result` is an SQLAlchemy `CursorResult` object. `id_col` is the column name of the primary key (corresponding to `id` column of a table). If this column exists in the dataframe itself, pass the name of the column in this argument.
+`data` is the actual dataframe to write. This `result` is an SQLAlchemy `CursorResult` object. `id_col` is the column name of the primary key (corresponding to `id` column of a table). If this column exists in the dataframe itself, pass the name of the column in this argument. If `drop_first` is `True`, then the table will be dropped and created from the dataframe schema. Otherwise, the writer will read the schema from the database, check whether there is any null data in non-nullable columns and then try to write the data to the table. Needless to say, the column names must be identical in dataframe and the table.
+
+
+## Writing to NoSQL Database
+
+Create the writer object.
+
+    writer = NoSQLDatabaseWriter(
+        dbtype="mongo",
+        host=os.environ["MONGO_HOST"],
+        dbname=DBNAME,
+        user=os.environ["MONGO_USER"],
+        password=os.environ["MONGO_PASSWORD"],
+        port=int(os.environ["MONGO_PORT"]),
+    )
+
+Get list of databases.
+
+    dbnames = writer.get_list_of_databases()
+
+Get list of collections of the current database.
+
+    collection_names = writer.get_list_of_collections()
+
+Get a certain collection or create it.
+
+    collection = writer.get_or_create_collection(collection_name=collection_name)
+
+Get document count of a collection.
+
+    doc_count = writer.get_document_count(collection_name=collection_name)
+
+Write to a collection `collection_name`.
+
+    result = write_data_to_collection(collection_name=collection_name, data=data)
+
 
 
 ## Generate Documentation
