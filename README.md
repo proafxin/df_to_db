@@ -116,8 +116,8 @@ result = write_data_to_collection(collection_name=collection_name, data=data)
 
 
 
-## Generate Documentation
-
+## Generate Documentation Source Files
+You should not have to do this but in case you want to generate the source ReStructuredText files yourself, here is how. Skip to the next section to simply generate html documentation locally.
 
 Run `sphinx-quickstart`. Choose `y` when it asks to seperate build and source directories.
 
@@ -144,5 +144,5 @@ modules
 
 Run `sphinx-apidoc -f -o . ../../ ../../calculate_coverage.py  ../../setup.py ../../tests/`. It should generate the necessary ReStructuredText files for documentation.
 
-## Generating output
+## Generating HTML Documentation
 Change to `docs/` using `cd ..` then run `.\make clean` and `.\make html`. Output should be built with no errors or warnings. You will get the html documenation in `docs/build/html` directory. Open `index.html`.
