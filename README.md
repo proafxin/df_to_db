@@ -25,7 +25,7 @@ Create a virtual environment and activate it. Inside the virtual environment, ru
 
 ## Writing to SQL Database
 
-Create a writer object. For example, if you want to create a writer object for SQL databases,
+For SQL databases, use `SQLDatabaseWriter`.
 
 ```python
 from write_df.sql_writer import SQLDatabaseWriter
@@ -40,6 +40,7 @@ writer = SQLDatabaseWriter(
 )
 ```
 
+`dbtype` can be one of the SQL databses supported i.e. MySQL, PostgreSQL, SQL Server.
 Get the list of databases using the connection.
 
 ```python
@@ -71,6 +72,8 @@ result = writer.write_df_to_db(
 Create the writer object.
 
 ```python
+from write_df.nosql_writer import NoSQLDatabaseWriter
+
 writer = NoSQLDatabaseWriter(
     dbtype="mongo",
     host=os.environ["MONGO_HOST"],
