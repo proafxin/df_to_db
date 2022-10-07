@@ -40,7 +40,7 @@ writer = SQLDatabaseWriter(
 )
 ```
 
-`dbtype` can be one of the SQL databses supported i.e. MySQL, PostgreSQL, SQL Server.
+`dbtype` can be one of the SQL databses supported i.e. one of `mysql, postgresql, sqlserver`.
 Get the list of databases using the connection.
 
 ```python
