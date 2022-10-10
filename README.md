@@ -3,14 +3,13 @@
 
 # Dataframe to Database
 
-Write a pandas dataframe to a database directly. The `df.to_sql` is severely insufficient for this purpose. It not only overwrites the current table, it also requires manually creating an `SQLAlchemy` engine for connection. `df-to-db` is meant to take all the extra steps away from this writing process. Currently, the goal is to support both SQL and NoSQL databases including data warehouse such as `Google BigQuery` or `Apache Cassandra`. For SQL databases, `SQLAlchemy` is used internally for generalizing all SQL database connections.
+Write a pandas dataframe to a database directly. The `df.to_sql` is severely insufficient for this purpose. It not only overwrites the current table, it also requires manually creating an `SQLAlchemy` engine for connection. `df-to-db` is meant to take all the extra steps away from this writing process. Currently, the goal is to support both SQL and NoSQL databases including data warehouse such as `Google BigQuery` or `Apache Cassandra` (they are not supported at the moment). For SQL databases, `SQLAlchemy` is used internally for generalizing all SQL database connections.
 
 ## Supported So Far
 * MySQL
 * Postgresql
 * SQL Server
 * Mongo
-
 
 # Notes for Linux
 
