@@ -29,18 +29,18 @@ POSTGRE_CONNECTION = SQLDatabaseWriter(
     password=os.environ["POSTGRESQL_PASSWORD"],
     port=os.environ["POSTGRESQL_PORT"],
 )
-# SQLSERVER_CONNECTION = SQLDatabaseWriter(
-#     dbtype="sqlserver",
-#     host=os.environ["SQLSERVER_HOST"],
-#     dbname=DBNAME,
-#     user=os.environ["SQLSERVER_USER"],
-#     password=os.environ["SQLSERVER_PASSWORD"],
-#     port=os.environ["SQLSERVER_PORT"],
-# )
+SQLSERVER_CONNECTION = SQLDatabaseWriter(
+    dbtype="sqlserver",
+    host=os.environ["SQLSERVER_HOST"],
+    dbname=DBNAME,
+    user=os.environ["SQLSERVER_USER"],
+    password=os.environ["SQLSERVER_PASSWORD"],
+    port=os.environ["SQLSERVER_PORT"],
+)
 
 CONNECTIONS = [
     ("mysql", {"conn": MYSQL_CONNECTION}),
-    # ("sqlserver", {"conn": SQLSERVER_CONNECTION}),
+    ("sqlserver", {"conn": SQLSERVER_CONNECTION}),
     ("postgresql", {"conn": POSTGRE_CONNECTION}),
 ]
 
@@ -102,7 +102,9 @@ class TestWriteToSQL:
 
         data = pd.read_csv(StringIO(response.content.decode()))
         primary_key = "id"
-        data[primary_key] = [random.randint(1, data.shape[0]) for i in range(data.shape[0])]
+        data[primary_key] = [
+            random.randint(1, data.shape[0]) for i in range(data.shape[0])
+        ]
         data["y"] = [random.random() for i in range(data.shape[0])]
         table_name = "test__table__"
 
