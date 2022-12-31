@@ -57,7 +57,9 @@ class SQLDatabaseWriter:
         dialect = saved_values[self.__dbtype]["dialect"]
         driver = saved_values[self.__dbtype]["driver"]
 
-        connection_string = f"{dialect}{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
+        connection_string = (
+            f"{dialect}{driver}://{user}:{password}@{host}:{port}/{self.__dbname}"
+        )
 
         engine = create_engine(connection_string, future=True)
 
@@ -127,9 +129,13 @@ class SQLDatabaseWriter:
 
         with self.__engine.connect() as connection:
             if "server" in self.__dbtype:
-                return self.__engine.dialect.has_table(connection=connection, tablename=table_name)
+                return self.__engine.dialect.has_table(
+                    connection=connection, tablename=table_name
+                )
             else:
-                return self.__engine.dialect.has_table(connection=connection, table_name=table_name)
+                return self.__engine.dialect.has_table(
+                    connection=connection, table_name=table_name
+                )
 
     def _check_null(self, data: pd.DataFrame, info: pd.DataFrame, id_col: str):
 
@@ -187,7 +193,9 @@ class SQLDatabaseWriter:
             elif is_numeric_dtype(data[column]):
                 columns.append(Column(column, Float, nullable=nullable_status))
             else:
-                columns.append(Column(column, String(max_length), nullable=nullable_status))
+                columns.append(
+                    Column(column, String(max_length), nullable=nullable_status)
+                )
 
         table = Table(table_name, metadata, *columns)
 
