@@ -4,7 +4,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="df-to-db",
-    version="1.2",
+    version="1.3",
     author="Masum Billal",
     author_email="billalmasum93@gmail.com",
     packages=find_packages(),
@@ -20,7 +20,6 @@ setup(
         "pytest",
         "cryptography",
         "pymongo",
-        # "pyodbc",
         "sqlalchemy",
         "mysqlclient",
         "coverage",
