@@ -48,7 +48,9 @@ def get_badge(total, color=DEFAULT_COLOR):
     """
     template_path = "flat.svg"
     template = pkg_resources.resource_string(__name__, template_path).decode("utf8")
-    return template.replace("{{ total }}", str(int(total))).replace("{{ color }}", color)
+    return template.replace("{{ total }}", str(int(total))).replace(
+        "{{ color }}", color
+    )
 
 
 def save_badge(badge, filepath):

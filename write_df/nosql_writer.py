@@ -11,7 +11,9 @@ __all__ = ["NoSQLDatabaseWriter"]
 class MongoDatabaseWriter:
     """Writer class for Mongo databases"""
 
-    def __init__(self, host: str, dbname: str, user: str, password: str, port: int) -> None:
+    def __init__(
+        self, host: str, dbname: str, user: str, password: str, port: int
+    ) -> None:
         self.__client = self._get_mongo_client(
             host=host,
             username=user,
@@ -27,7 +29,9 @@ class MongoDatabaseWriter:
             f"mongodb+srv://{username}:{password}@{host}/?retryWrites=true&w=majority"
         )
 
-        client = pymongo.MongoClient(host=connection_string, port=port, document_class=dict)
+        client = pymongo.MongoClient(
+            host=connection_string, port=port, document_class=dict
+        )
 
         return client
 
@@ -135,7 +139,9 @@ class NoSQLDatabaseWriter:
         :rtype: `pymongo.results.InsertManyResult`
         """
 
-        return self.__writer._write_data_to_collection(collection_name=collection_name, data=data)
+        return self.__writer._write_data_to_collection(
+            collection_name=collection_name, data=data
+        )
 
     def get_document_count(self, collection_name: str):
         """Get number of documents in collection `collection_name`.
